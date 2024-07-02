@@ -17,6 +17,7 @@ class PerSec(nn.Module):
 	def forward(self, x):
 		x = self.stage1(x)
 		x = self.stroke_context_aggregator(x)
+		x = x.transpose(1, 2).reshape(x.shape[0], x.shape[1], self.img_size[0] // 4, self.img_size[1] // 4)
 		x = self.stage2(x)
 		x = self.stage3(x)
 		x = self.stage4(x)

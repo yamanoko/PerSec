@@ -1,0 +1,26 @@
+import torch
+import torch.nn as nn
+from torch.nn import CrossEntropyLoss
+from torch.nn.functional import normalize
+
+class ContrastiveLoss(nn.Module):
+	def __init__(self, temperature=0.07):
+		super(ContrastiveLoss, self).__init__()
+		self.temperature = temperature
+
+	def forward(self, x, y, mask_index):
+		# x: (B, N, D), y: (B, N, D), mask_index: (M)
+		normalized_x = normalize(x, dim=-1)
+		normalized_y = normalize(y, dim=-1)
+		normalized_x = torch.index_select(normalized_x, -2, mask_index)
+		# normalized_x: (B, M, D), normalized_y: (B, N, D)
+		cos_similarities = torch.matmul(normalized_x, normalized_y.T) / self.temperature
+		# cos_similarities: (B, M, N)
+		cos_similarities = cos_similarities.transpose(1, 2)
+		# cos_similarities: (B, N, M)
+		label = mask_index.unsqueeze(0)
+		# label: (1, M)
+		label = label.expand(cos_similarities.size(0), -1)
+		# label: (B, M)
+		loss = CrossEntropyLoss()(cos_similarities, label)
+		return loss
