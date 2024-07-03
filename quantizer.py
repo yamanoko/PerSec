@@ -11,6 +11,8 @@ class GumbelVectorQuantizer(nn.Module):
 		self.temperature = temperature
 	
 	def forward(self, x):
+		# x:[B, C, H, W]
+		x = x.view(x.shape[0], x.shape[1], -1).permute(0, 2, 1)
 		# x: [B, N, E]
 		B, N, E = x.shape
 		hidden_states = self.linear(x)
