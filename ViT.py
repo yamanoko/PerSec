@@ -20,8 +20,8 @@ class VitInput(nn.Module):
 	def __init__(self, img_size, in_channels, patch_size, emb_size, stride, padding):
 		super(VitInput, self).__init__()
 		h, w = img_size
-		out_h = (h - patch_size + 2 * padding) // stride + 1
-		out_w = (w - patch_size + 2 * padding) // stride + 1
+		out_h = (h - patch_size + 2 * padding) // stride[0] + 1
+		out_w = (w - patch_size + 2 * padding) // stride[1] + 1
 		self.patch_embedding = PatchEmbedding(in_channels, patch_size, emb_size, stride, padding)
 		self.pos_embedding = nn.Parameter(torch.randn(1, out_h*out_w, emb_size))
 
@@ -34,21 +34,24 @@ class VitInput(nn.Module):
 
 class SpatialReductionAttention(nn.Module):
 	def __init__(self, emb_size, num_heads, reduction, qkv_dim, drop_out):
+		super(SpatialReductionAttention, self).__init__()
 		self.num_head = num_heads
 		self.reduction = reduction
 		self.q_linear = nn.Linear(emb_size, qkv_dim)
 		self.k_linear = nn.Linear(emb_size * (reduction ** 2), qkv_dim)
 		self.v_linear = nn.Linear(emb_size * (reduction ** 2), qkv_dim)
-		self.ln = nn.LayerNorm(qkv_dim)
+		self.ln = nn.LayerNorm(qkv_dim // num_heads)
 		self.dropout = nn.Dropout(drop_out)
 		self.fc = nn.Linear(qkv_dim, emb_size)
 
 	def forward(self, x):
 		B, N, E = x.shape
 		q = self.q_linear(x).reshape(B, N, self.num_head, -1).permute(0, 2, 1, 3)
-		# q: [B, H, N, D]
+		# q: [B, H, N, D], D=qkv_dim//num_heads
 		k = x.reshape(B, N // (self.reduction ** 2), -1)
+		# k: [B, N // (r^2), E*r^2]
 		k = self.k_linear(k).reshape(B, N // (self.reduction ** 2), self.num_head, -1).permute(0, 2, 1, 3)
+		# k: [B, H, N // (r^2), D]
 		k = self.ln(k)
 		# k: [B, H, N // (r^2), D]
 		v = x.reshape(B, N // (self.reduction ** 2), -1)

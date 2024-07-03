@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 class WMultiHeadAttention(nn.Module):
-	def __init__(self, emb_size, num_heads, qkv_dim, dropout, range=1.0):
+	def __init__(self, emb_size, num_heads, qkv_dim, dropout, window=1.0):
 		super(WMultiHeadAttention, self).__init__()
 		self.num_heads = num_heads
 		self.q_linear = nn.Linear(emb_size, qkv_dim)
@@ -10,15 +10,15 @@ class WMultiHeadAttention(nn.Module):
 		self.v_linear = nn.Linear(emb_size, qkv_dim)
 		self.fc = nn.Linear(qkv_dim, emb_size)
 		self.dropout = nn.Dropout(dropout)
-		self.range = range
+		self.window = window
 
 	def forward(self, x):
 		# x: [B, N, E]
 		B, N, E = x.shape
-		if self.range <= 1.0:
-			W = self.range * N
+		if self.window <= 1.0:
+			W = self.window * N
 		else:
-			W = self.range
+			W = self.window
 		M = torch.full((N, N), float('-inf'), device=x.device)
 		window_indices = torch.abs(torch.arange(N).unsqueeze(0) - torch.arange(N).unsqueeze(1)) <= W // 2
 		window_indices.to(x.device)
@@ -41,11 +41,11 @@ class WMultiHeadAttention(nn.Module):
 		return x
 
 class VitEncoderWithWMHSA(nn.Module):
-	def __init__(self, emb_size, num_heads, mlp_ratio, qkv_dim, dropout, range=1.0):
+	def __init__(self, emb_size, num_heads, mlp_ratio, qkv_dim, dropout, window=1.0):
 		super(VitEncoderWithWMHSA, self).__init__()
 		self.ln1 = nn.LayerNorm(emb_size)
 		self.ln2 = nn.LayerNorm(emb_size)
-		self.mh_attention = WMultiHeadAttention(emb_size, num_heads, qkv_dim, dropout, range)
+		self.mh_attention = WMultiHeadAttention(emb_size, num_heads, qkv_dim, dropout, window)
 		self.mlp = nn.Sequential(
 			nn.Linear(emb_size, int(emb_size * mlp_ratio)),
 			nn.GELU(),
@@ -62,9 +62,9 @@ class VitEncoderWithWMHSA(nn.Module):
 
 
 class VitInputWith2DPositionEncoding(nn.Module):
-	def __init__(self, in_channels, emb_size):
+	def __init__(self, in_channel):
 		super(VitInputWith2DPositionEncoding, self).__init__()
-		self.dw_conv = nn.Conv2d(in_channels, emb_size, kernel_size=3, stride=1, padding=1, groups=in_channels)
+		self.dw_conv = nn.Conv2d(in_channel, in_channel, kernel_size=3, stride=1, padding=1, groups=in_channel)
 		self.sigmoid = nn.Sigmoid()
 
 	def forward(self, x):
@@ -72,18 +72,18 @@ class VitInputWith2DPositionEncoding(nn.Module):
 		x = x * self.sigmoid(self.dw_conv(x))
 		x = x.flatten(2)
 		x = x.transpose(1, 2)
-		# x: [B, N * N, E]
+		# x: [B, N * N, C]
 		return x
 
 class ContextAggregator(nn.Module):
-	def __init__(self, in_channel, emb_size, num_heads, mlp_ratio, qkv_dim, num_layer, dropout, range=1.0):
+	def __init__(self, in_channel, num_heads, mlp_ratio, qkv_dim, num_layer, dropout, window=1.0):
 		super(ContextAggregator, self).__init__()
-		self.vit_input = VitInputWith2DPositionEncoding(in_channel, emb_size)
-		self.layers = nn.Sequential(*[VitEncoderWithWMHSA(emb_size, num_heads, mlp_ratio, qkv_dim, dropout, range) for _ in range(num_layer)])
+		self.vit_input = VitInputWith2DPositionEncoding(in_channel)
+		self.layers = nn.Sequential(*[VitEncoderWithWMHSA(in_channel, num_heads, mlp_ratio, qkv_dim, dropout, window) for _ in range(num_layer)])
 
 	def forward(self, x):
 		# x: [B, C, H, W]
 		x = self.vit_input(x)
 		x = self.layers(x)
-		# x: [B, N * N, E]
+		# x: [B, N * N, C]
 		return x
