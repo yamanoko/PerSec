@@ -20,7 +20,7 @@ class WMultiHeadAttention(nn.Module):
 		else:
 			W = self.window
 		M = torch.full((N, N), float('-inf'), device=x.device)
-		window_indices = torch.abs(torch.arange(N).unsqueeze(0) - torch.arange(N).unsqueeze(1)) <= W // 2
+		window_indices = torch.abs(torch.arange(N).unsqueeze(0).expand(N, -1) - torch.arange(N).unsqueeze(1).expand(-1, N)) <= W // 2
 		window_indices.to(x.device)
 		M[window_indices] = 0
 
