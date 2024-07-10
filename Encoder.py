@@ -16,6 +16,7 @@ class PerSec(nn.Module):
 		self.stage4 = Vit(img_size=(img_size[0] // 16, img_size[1] // 4), in_channels=320, patch_size=3, emb_size=512, stride=(2, 1), padding=1, num_heads=8, mlp_ratio=4, reduction=1, qkv_dim=512, num_layers=2, dropout=0)
 		self.replacement_high = nn.Parameter(torch.randn(512))
 		self.semantic_context_aggregator = ContextAggregator(in_channel=512, num_heads=8, mlp_ratio=4, qkv_dim=512, num_layer=2, dropout=0, window=10)
+		self.lstm = nn.LSTM(512, 512, num_layers=2, bidirectional=True, batch_first=True)
 		
 	def _replace_mask(self, x, mask, new_value):
 		if mask is None:
@@ -48,4 +49,5 @@ class PerSec(nn.Module):
 		x = self._replace_mask(x, mask_high, self.replacement_high)
 		x = self.semantic_context_aggregator(x)
 		# print("semantic_context_aggregator", x.shape)
-		return x
+		x, hidden = self.lstm(x)
+		return x, hidden

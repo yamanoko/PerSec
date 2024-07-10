@@ -9,9 +9,11 @@ class Attention(nn.Module):
 	
 	def forward(self, hidden, encoder_outputs):
 		# hidden: (Num_layers * Num_directions, Batch_size, Hidden_size)
-		# encoder_outputs: (Batch_size, Seq_len, Hidden_size)
+		# encoder_outputs: (Batch_size, Seq_len, Num_directions * Hidden_size)
 		hidden = hidden.mean(dim=0).unsqueeze(1).repeat(1, encoder_outputs.size(1), 1)
 		# hidden: (Batch_size, Seq_len, Hidden_size)
+		encoder_outputs = encoder_outputs.view(-1, encoder_outputs.size(1), 2, self.hidden_size).sum(dim=2)
+		# encoder_outputs: (Batch_size, Seq_len, Hidden_size)
 		attn_weights = F.softmax(torch.sum(hidden * encoder_outputs, dim=2), dim=1).unsqueeze(1)
 		# attn_weights: (Batch_size, 1, Seq_len)
 		attn_weighted = torch.bmm(attn_weights, encoder_outputs)
@@ -35,7 +37,7 @@ class LSTMAttnDecoder(nn.Module):
 		embedded = self.embedding(input)
 		embedded = self.dropout(embedded)
 		# embedded: (Batch_size, 1, Hidden_size)
-		attn_weighted = self.attention(last_hidden, encoder_outputs)
+		attn_weighted = self.attention(last_hidden[0], encoder_outputs)
 		# attn_weighted: (Batch_size, 1, Hidden_size)
 		rnn_input = torch.cat((embedded, attn_weighted), dim=2)
 		output, hidden = self.lstm(rnn_input, last_hidden)
