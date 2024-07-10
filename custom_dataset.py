@@ -9,7 +9,7 @@ from PIL import Image
 import os
 
 class ContrastiveLearningDataset(Dataset):
-	def __init__(self, img_dir, img_size=(32, 600)):
+	def __init__(self, img_dir, img_size=(32, 384)):
 		super().__init__()
 		self.img_size = img_size
 		assert os.path.isdir(img_dir), f"{img_dir} is not a valid directory"
@@ -37,7 +37,7 @@ class ContrastiveLearningDataset(Dataset):
 
 
 class DecoderDataset(Dataset):
-	def __init__(self, csv_path, img_dir, token_dict, img_size=(32, 600), max_length=50):
+	def __init__(self, csv_path, img_dir, token_dict, img_size=(32, 384), max_length=50):
 		super().__init__()
 		self.img_dir = img_dir
 		self.annotation = pd.read_csv(csv_path, index_col=0)
