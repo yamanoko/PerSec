@@ -1,0 +1,41 @@
+{
+    "model": {
+        "ViT-base Encoder": false
+    },
+    "SSL": {
+        "dataset 1": null,
+        "dataset 2": null,
+        "dataset 3": null,
+        "epochs": 10,
+        "batch_size": 64,
+        "learning_rate": 0.001,
+        "lr scheduler step size": 5,
+        "lr scheduler gamma": 0.5,
+        "save Encoder path": null,
+        "save stroke quantizer path": null,
+        "save semantic quantizer path": null
+    },
+    "fine-tuning": {
+        "dataset 1": null,
+        "dataset 1 csv": null,
+        "dataset 2": null,
+        "dataset 2 csv": null,
+        "dataset 3": null,
+        "dataset 3 csv": null,
+        "test dataset": null,
+        "fine-tune on an additional dataset": false,
+        "Encoder path to fine-tune": null,
+        "Decoder path to fine-tune": null,
+        "Freeze Encoder": false,
+        "epochs": 10,
+        "batch_size": 64,
+        "learning_rate": 0.001,
+        "lr scheduler step size": 5,
+        "lr scheduler gamma": 0.5,
+        "save model path": null,
+        "char to token path": null,
+        "token to char path": null,
+        "save Encoder path": null,
+        "save Decoder path": null
+    }
+}

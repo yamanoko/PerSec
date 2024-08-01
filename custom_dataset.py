@@ -2,8 +2,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 from torchvision import transforms
-from torchvision.transforms import Lambda
-from torch.utils.data import Dataset, DataLoader
+from torchvision.transforms import Compose, Lambda, RandomApply, GaussianBlur, RandomRotation, Grayscale, Resize, ToTensor
+from torch.utils.data import Dataset
 from PIL import Image
 
 import os
@@ -18,10 +18,13 @@ class ContrastiveLearningDataset(Dataset):
 		]
 		if not self.filepaths:
 			raise FileNotFoundError(f"No images found in {img_dir}")
-		self.transform = transforms.Compose([
+		self.transform = Compose([
 			Lambda(lambda img: img.convert("RGB")),
-			transforms.Resize(img_size),
-			transforms.ToTensor()
+			RandomApply([GaussianBlur(kernel_size=3)], p=0.3),
+			RandomRotation(degrees=3.5, fill=255),
+			Grayscale(num_output_channels=3),
+			Resize(img_size),
+			ToTensor()
 		])
 	
 	def __len__(self):
@@ -37,17 +40,21 @@ class ContrastiveLearningDataset(Dataset):
 
 
 class DecoderDataset(Dataset):
-	def __init__(self, csv_path, img_dir, token_dict, img_size=(32, 384), max_length=50):
+	def __init__(self, csv_path, img_dir, token_dict, img_size=(32, 384), max_length=20):
 		super().__init__()
 		self.img_dir = img_dir
-		self.annotation = pd.read_csv(csv_path, index_col=0)
+		self.annotation = pd.read_csv(csv_path)
 		self.token_dict = token_dict
 		self.max_length = max_length
-		self.transform = transforms.Compose([
+		self.transform = Compose([
 			Lambda(lambda img: img.convert("RGB")),
-			transforms.Resize(img_size),
-			transforms.ToTensor()
+			RandomApply([GaussianBlur(kernel_size=3)], p=0.3),
+			RandomRotation(degrees=3.5, fill=255),
+			Grayscale(num_output_channels=3),
+			Resize(img_size),
+			ToTensor()
 		])
+		assert len(self.annotation) == len(os.listdir(img_dir)), "Number of images and annotations do not match"
 	
 	def __len__(self):
 		return len(self.annotation)
@@ -61,7 +68,7 @@ class DecoderDataset(Dataset):
 		img = self.transform(img)
 		label = self.annotation.iloc[idx, 0]
 		label_tokenized = [
-			self.token_dict(char.lower()) 
+			self.token_dict[char.lower()] 
 			if char.lower() in self.token_dict 
 			else self.token_dict["<UNK>"] 
 			for char in label
